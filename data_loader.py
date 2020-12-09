@@ -51,7 +51,7 @@ class dataset(torch.utils.data.Dataset):
         input_tensor = input_tensor.to(self.device)
         output_tensor = output_tensor.to(self.device)
         
-        return input_tensor, output_tensor
+        return input_tensor, output_tensor, output_name
         
     def get_transform(self, hflip=False, vflip=False):
         transform = []

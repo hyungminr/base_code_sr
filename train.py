@@ -64,7 +64,7 @@ print(f'Training Start || Ver: {version} || Mode: {mode}')
 step = 0
 for epoch in range(num_epochs):
     with tqdm(loader, desc=f'Epoch {epoch+1}/{num_epochs}', position=0, leave=True) as pbar:
-        for lr, hr in pbar:
+        for lr, hr, _ in pbar:
             
             # prediction
             pred = model(lr)            
