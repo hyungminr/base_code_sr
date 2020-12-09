@@ -45,9 +45,9 @@ optim = torch.optim.Adam(params, lr=1e-4)
 scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=1000, gamma= 0.99)
 criterion = torch.nn.L1Loss()
 
-height = 256
-width = 256
-batch_size = 2
+height = 128
+width = 128
+batch_size = 4
 augment = True # if True, random crop from image, else, center crop
 
 loader = get_loader(h=height, w=width, augment=augment, device=device, batch_size=batch_size)
