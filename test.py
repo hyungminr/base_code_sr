@@ -26,6 +26,7 @@ data_path = './data/DIV2K/DIV2K_valid_LR_bicubic/X2/'
 if save_results:
     version = '201209_RCAN_test'
     result_dir = f'./results/{version}/'
+    os.makedirs(result_dir, exist_ok=True)
 
 """ set training environment """
 
@@ -75,8 +76,8 @@ with tqdm(loader, desc=f'Evaluating', position=0, leave=True) as pbar:
         ssim_mean = np.array(hist['ssim']).mean()
         
         pfix['psnr'] = f'{psnr:.4f}'
-        pfix['psnr_mean'] = f'{psnr_mean:.4f}'
         pfix['ssim'] = f'{ssim:.4f}'
+        pfix['psnr_mean'] = f'{psnr_mean:.4f}'
         pfix['ssim_mean'] = f'{ssim_mean:.4f}'
         
         pbar.set_postfix(pfix)
