@@ -52,8 +52,8 @@ augment = True # if True, random crop from image, else, center crop
 
 loader = get_loader(h=height, w=width, augment=augment, device=device, batch_size=batch_size)
 
-save_result_every = 100
-
+save_image_every = 100
+save_model_every = 10
 
 
 """ start training """
@@ -88,7 +88,7 @@ for epoch in range(num_epochs):
             hist['Loss'].append(loss.item())
             pbar.set_postfix(pfix)
             
-            if step % save_result_every == 0:
+            if step % save_image_every == 0:
             
                 z = torch.zeros_like(lr[0])
                 xz = torch.cat((lr[0], z), dim=-2)                                
@@ -108,7 +108,8 @@ for epoch in range(num_epochs):
                 plt.close('all')
             step += 1
         
-        torch.save(model.state_dict(), f'{weight_dir}/epoch_{epoch+1:04d}_loss_{loss.item():.4f}.pth')
+        if epoch % save_model_every == 0:
+            torch.save(model.state_dict(), f'{weight_dir}/epoch_{epoch+1:04d}_loss_{loss.item():.4f}.pth')
 
 
 
