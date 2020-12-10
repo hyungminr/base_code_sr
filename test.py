@@ -8,8 +8,10 @@ from torchvision import transforms as T
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skimage.measure import compare_ssim
-from skimage.measure import compare_psnr
+# from skimage.measure import compare_ssim as get_ssim
+# from skimage.measure import compare_psnr as get_psnr
+from skimage.metrics import peak_signal_noise_ratio as get_psnr
+from skimage.metrics import structural_similarity as get_ssim
 
 ## my library
 from model import RCAN
@@ -40,7 +42,7 @@ batch_size = 1
 augment = False # if True, random crop from image, else, center crop
 mode = 'test'
 
-loader = get_loader(root_dir=data_path, h=height, w=width, augment=augment, device=device, batch_size=batch_size)
+loader = get_loader(root_dir=data_path, h=height, w=width, augment=augment, device=device, batch_size=batch_size, mode=mode)
 
 
 """ start evaluating """
@@ -66,8 +68,8 @@ with tqdm(loader, desc=f'Evaluating', position=0, leave=True) as pbar:
         pred_np = pred[0].cpu().detach().numpy()
         pred_np = np.transpose(pred_np, (1, 2, 0))
         
-        psnr = compare_psnr(hr_np, pred_np)
-        ssim = compare_ssim(hr_np, pred_np, multichannel=True, gaussian_weights=True)
+        psnr = get_psnr(hr_np, pred_np)
+        ssim = get_ssim(hr_np, pred_np, multichannel=True, gaussian_weights=True)
                 
         hist['psnr'].append(psnr)
         hist['ssim'].append(ssim)   
@@ -81,10 +83,13 @@ with tqdm(loader, desc=f'Evaluating', position=0, leave=True) as pbar:
         pfix['ssim_mean'] = f'{ssim_mean:.4f}'
         
         pbar.set_postfix(pfix)
-        
+        print(image_name)
         if save_results:
-            file_name = image_name[0].split('/')[-1]              
-            img = torch.clamp(pred[0], 0, 1).cpu()
+            file_name = image_name[0].split('/')[-1]
+            z = torch.zeros_like(lr[0])
+            xz = torch.cat((lr[0], z), dim=-2)
+            img = torch.cat((xz, pred[0], hr[0]), dim=-1)           
+            img = torch.clamp(img, 0, 1).cpu()
             img = t2img(img)
             img.save(f'{result_dir}/{file_name}')
 
