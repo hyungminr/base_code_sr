@@ -108,7 +108,7 @@ for epoch in range(num_epochs):
                 plt.close('all')
             step += 1
         
-        if epoch % save_model_every == 0:
+        if (epoch+1) % save_model_every == 0:
             torch.save(model.state_dict(), f'{weight_dir}/epoch_{epoch+1:04d}_loss_{loss.item():.4f}.pth')
 
 
