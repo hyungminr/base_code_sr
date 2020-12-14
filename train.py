@@ -38,7 +38,9 @@ hist = {'Loss': [], 'Loss S': [], 'Loss T': [], 'Loss D': [], 'Iter': []}
 
 num_epochs = 1000
 
-model = RCAN(scale=2).to(device)
+scale_factor = 2
+
+model = RCAN(scale=scale_factor).to(device)
 
 params = list(model.parameters())
 optim = torch.optim.Adam(params, lr=1e-4)
@@ -50,7 +52,8 @@ width = 128
 batch_size = 4
 augment = True # if True, random crop from image, else, center crop
 
-loader = get_loader(h=height, w=width, augment=augment, device=device, batch_size=batch_size)
+
+loader = get_loader(h=height, w=width, scale_factor=scale_factor, augment=augment, device=device, batch_size=batch_size)
 
 save_image_every = 100
 save_model_every = 10

@@ -32,7 +32,8 @@ if save_results:
 
 """ set training environment """
 
-model = RCAN(scale=2).to(device)
+scale_factor = 2
+model = RCAN(scale=scale_factor).to(device)
 model.load_state_dict(torch.load(model_path))
 model.eval()
 
@@ -42,7 +43,7 @@ batch_size = 1
 augment = False # if True, random crop from image, else, center crop
 mode = 'test'
 
-loader = get_loader(root_dir=data_path, h=height, w=width, augment=augment, device=device, batch_size=batch_size, mode=mode)
+loader = get_loader(root_dir=data_path, h=height, w=width, scale_factor=scale_factor, augment=augment, device=device, batch_size=batch_size, mode=mode)
 
 
 """ start evaluating """

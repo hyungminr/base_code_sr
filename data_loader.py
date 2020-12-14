@@ -9,13 +9,14 @@ from PIL import Image
 
 class dataset(torch.utils.data.Dataset):
     """ Load HR / LR pair """
-    def __init__(self, root_dir, height=128, width=128, augment=False, device='cpu'):
+    def __init__(self, root_dir, height=128, width=128, scale_factor=2, augment=False, device='cpu'):
         self.root_dir = root_dir
         self.height = height
         self.width = width
         self.augment = augment
         self.files = self.find_files()
         self.device = device
+        self.scale_factor = scale_factor
     
     def find_files(self):
         return glob.glob(f'{self.root_dir}/*.png')
@@ -33,16 +34,17 @@ class dataset(torch.utils.data.Dataset):
         w = self.width
                 
         index = self.indexerror(index)
-        input_name = self.files[index]
-        output_name = input_name.replace('LR_bicubic/X2', 'HR')
-        output_name = output_name.replace('x2.png', '.png')
         
+        output_name = self.files[index]
+        input_name = output_name.replace('HR', f'LR_bicubic/X{self.scale_factor}')
+        input_name = input_name.replace('.png', f'x{self.scale_factor}.png')
+               
         input_image = Image.open(input_name)
         output_image = Image.open(output_name)
         
         crop = self.get_crop_bbox(output_image)
         
-        input_image = self.crop_image(input_image, crop, scale_factor=2)
+        input_image = self.crop_image(input_image, crop, scale_factor=self.scale_factor)
         output_image = self.crop_image(output_image, crop)
         
         input_tensor = transform(input_image)
@@ -92,10 +94,10 @@ class dataset(torch.utils.data.Dataset):
         return index
     
 
-def get_loader(root_dir='./data/DIV2K/DIV2K_train_LR_bicubic/X2/', batch_size=1, num_workers=0, mode='train', h=128, w=128, augment=False, device='cpu'):
+def get_loader(root_dir='./data/DIV2K/DIV2K_train_HR/', batch_size=1, num_workers=0, mode='train', h=128, w=128, scale_factor=2, augment=False, device='cpu'):
         
     shuffle = (mode == 'train')    
-    data_loader = torch.utils.data.DataLoader(dataset=dataset(root_dir, h, w, augment, device),
+    data_loader = torch.utils.data.DataLoader(dataset=dataset(root_dir, h, w, scale_factor, augment, device),
                                               batch_size=batch_size,
                                               shuffle=shuffle,
                                               num_workers=num_workers)   
