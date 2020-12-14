@@ -113,6 +113,7 @@ class RCAN(nn.Module):
         
         # deep feature
         x_deep = self.body(x_shallow)
+        x_deep = self.body_last(x_deep)
         
         # shallow + deep
         x_feature = x_shallow + x_deep
