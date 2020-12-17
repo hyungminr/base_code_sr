@@ -1,6 +1,6 @@
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import sys
 import time
@@ -18,8 +18,10 @@ import shutil
 from skimage.metrics import peak_signal_noise_ratio as get_psnr
 from skimage.metrics import structural_similarity as get_ssim
 
+import torch.fft as fft
+
 # my library
-from model import RCAN
+from model_ex1_fft import RCAN
 from data_loader import get_loader
 from utils import get_gpu_memory, sec2time
 
@@ -28,7 +30,7 @@ from utils import get_gpu_memory, sec2time
 class Config:
     def __init__(self):
         self.version = '201209_RCAN'
-        self.mode = 'original'
+        self.mode = 'fft'
         self.height = 128
         self.width = 128
         self.batch_size = 4
@@ -62,10 +64,14 @@ pfix = OrderedDict()
 """ set training environment """
 
 # model build
-model = RCAN(scale=config.scale_factor).to(device)
-params = list(model.parameters())
-optim = torch.optim.Adam(params, lr=1e-4)
-scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=1000, gamma=0.99)
+model_r = RCAN(scale=config.scale_factor).to(device)
+model_i = RCAN(scale=config.scale_factor).to(device)
+params_r = list(model_r.parameters())
+params_i = list(model_i.parameters())
+optim_r = torch.optim.Adam(params_r, lr=1e-4)
+optim_i = torch.optim.Adam(params_i, lr=1e-4)
+scheduler_r = torch.optim.lr_scheduler.StepLR(optim_r, step_size=1000, gamma=0.99)
+scheduler_i = torch.optim.lr_scheduler.StepLR(optim_i, step_size=1000, gamma=0.99)
 criterion = torch.nn.L1Loss()
 
 
@@ -85,15 +91,26 @@ for epoch in range(config.num_epochs):
     with tqdm(train_loader, desc=f'Epoch {epoch+1}/{config.num_epochs}', position=0, leave=True) as pbar:
         for lr, hr, _ in pbar:
 
+            hr_fft = torch.fft.fftn(hr, dim =(2,3))
+            hr_fft_r = hr_fft.real
+            hr_fft_i = hr_fft.imag
+
             # prediction
-            pred = model(lr)
+            pred_r = model_r(lr)
+            pred_i = model_r(lr)
 
             # training
-            loss = criterion(hr, pred)
-            optim.zero_grad()
+            loss_r = criterion(hr_fft_r, pred_r)
+            loss_i = criterion(hr_fft_i, pred_i)
+            loss = loss_r + loss_i
+
+            optim_r.zero_grad()
+            optim_i.zero_grad()
             loss.backward()
-            optim.step()
-            scheduler.step()
+            optim_r.step()
+            optim_i.step()
+            scheduler_r.step()
+            scheduler_i.step()
 
             # training history
             free_gpu = get_gpu_memory()[0]
@@ -106,7 +123,7 @@ for epoch in range(config.num_epochs):
             pbar.set_postfix(pfix)
 
             writer.add_scalar('train/Loss', loss.item()/config.batch_size, step)
-            writer.add_scalar('train/lr', scheduler.get_last_lr()[0], step)
+            writer.add_scalar('train/lr', scheduler_r.get_last_lr()[0], step)
 
             step += 1
             
@@ -119,9 +136,25 @@ for epoch in range(config.num_epochs):
         ssim_list = []
 
         for lr, hr, _ in tqdm(test_loader):
+            hr_fft = torch.fft.fftn(hr, dim =(2,3))
+            hr_fft_r = hr_fft.real
+            hr_fft_i = hr_fft.imag
+            
+
+            lr_fft = torch.fft.fftn(lr, dim =(2,3))
+            lr_fft_r = lr_fft.real
+            lr_fft_i = lr_fft.imag
+
             # prediction
-            pred = model(lr)
-            loss = criterion(hr, pred)
+            pred_r = model_r(lr_fft_r)
+            pred_i = model_i(lr_fft_i)
+
+            loss_r = criterion(hr_fft_r, pred_r)
+            loss_i = criterion(hr_fft_i, pred_i)
+            loss = loss_r + loss_i
+
+            pred = torch.complex(pred_r, pred_i)
+            pred_img = torch.fft.ifftn(pred, dim =(2,3)).real
 
             # loss
             losses.append(loss.item()/config.batch_size)
@@ -130,7 +163,7 @@ for epoch in range(config.num_epochs):
             hr_np = hr.cpu().detach().numpy()
             hr_np = np.transpose(hr_np, (0, 2, 3, 1))
                     
-            pred_np = pred.cpu().detach().numpy()
+            pred_np = pred_img.cpu().detach().numpy()
             pred_np = np.transpose(pred_np, (0, 2, 3, 1))
 
             for i in range(lr.shape[0]):
@@ -139,7 +172,7 @@ for epoch in range(config.num_epochs):
 
             last_lr = lr
             last_hr = hr
-            last_pred = pred
+            last_pred = pred_img
 
             
 
@@ -157,5 +190,6 @@ for epoch in range(config.num_epochs):
         writer.add_image('images_gt', grid_gt, step)
 
 
-        torch.save(model.state_dict(), f'{weight_dir}/epoch_{epoch+1:04d}_loss_{np.mean(losses):.4f}.pth')
+        torch.save(model_r.state_dict(), f'{weight_dir}/epoch_{epoch+1:04d}_loss_{np.mean(losses):.4f}_r.pth')
+        torch.save(model_i.state_dict(), f'{weight_dir}/epoch_{epoch+1:04d}_loss_{np.mean(losses):.4f}_i.pth')
 

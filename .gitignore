@@ -2,3 +2,9 @@
 *.png
 *.pth
 *.pyc
+.vscode/settings.json
+data/DIV2K.tar
+log/*
+~$exp_list.xlsx
+.idea/
+.ipynb_checkpoints/*

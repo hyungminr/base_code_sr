@@ -18,6 +18,9 @@ import shutil
 from skimage.metrics import peak_signal_noise_ratio as get_psnr
 from skimage.metrics import structural_similarity as get_ssim
 
+import torch.fft as fft
+
+
 # my library
 from model import RCAN
 from data_loader import get_loader
@@ -28,7 +31,7 @@ from utils import get_gpu_memory, sec2time
 class Config:
     def __init__(self):
         self.version = '201209_RCAN'
-        self.mode = 'original'
+        self.mode = 'ex2_fft'
         self.height = 128
         self.width = 128
         self.batch_size = 4
@@ -71,7 +74,7 @@ criterion = torch.nn.L1Loss()
 
 # dataset
 train_loader, test_loader = get_loader(h=config.height, w=config.width, scale_factor=config.scale_factor,
-                                       augment=config.augment, device=device, batch_size=config.batch_size)
+                                       augment=config.augment, batch_size=config.batch_size)
 
 """ start training """
 
@@ -84,12 +87,23 @@ for epoch in range(config.num_epochs):
     ## train loop
     with tqdm(train_loader, desc=f'Epoch {epoch+1}/{config.num_epochs}', position=0, leave=True) as pbar:
         for lr, hr, _ in pbar:
+            lr = lr.to(device)
+            hr = hr.to(device)
 
+            hr_fft = torch.fft.fftn(hr, dim =(2,3))
+            hr_fft_r = hr_fft.real
+            hr_fft_i = hr_fft.imag
+            
             # prediction
             pred = model(lr)
+            pred_fft = torch.fft.fftn(pred, dim =(2,3))
+            pred_fft_r = pred_fft.real
+            pred_fft_i = pred_fft.imag
+
+            
 
             # training
-            loss = criterion(hr, pred)
+            loss = criterion(hr, pred) + 0.01*criterion(hr_fft_r, pred_fft_r) + 0.01*criterion(hr_fft_i, pred_fft_i)
             optim.zero_grad()
             loss.backward()
             optim.step()
@@ -109,6 +123,9 @@ for epoch in range(config.num_epochs):
             writer.add_scalar('train/lr', scheduler.get_last_lr()[0], step)
 
             step += 1
+
+            # if step >10:
+            #     break
             
 
             
@@ -119,9 +136,21 @@ for epoch in range(config.num_epochs):
         ssim_list = []
 
         for lr, hr, _ in tqdm(test_loader):
+            lr = lr.to(device)
+            hr = hr.to(device)
+
+
+            hr_fft = torch.fft.fftn(hr, dim =(2,3))
+            hr_fft_r = hr_fft.real
+            hr_fft_i = hr_fft.imag
+            
             # prediction
             pred = model(lr)
-            loss = criterion(hr, pred)
+            pred_fft = torch.fft.fftn(pred, dim =(2,3))
+            pred_fft_r = pred_fft.real
+            pred_fft_i = pred_fft.imag
+
+            loss = criterion(hr, pred) + 0.01*criterion(hr_fft_r, pred_fft_r) + 0.01*criterion(hr_fft_i, pred_fft_i)
 
             # loss
             losses.append(loss.item()/config.batch_size)
@@ -129,7 +158,7 @@ for epoch in range(config.num_epochs):
             # psnr, ssim
             hr_np = hr.cpu().detach().numpy()
             hr_np = np.transpose(hr_np, (0, 2, 3, 1))
-                    
+            
             pred_np = pred.cpu().detach().numpy()
             pred_np = np.transpose(pred_np, (0, 2, 3, 1))
 

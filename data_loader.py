@@ -7,15 +7,19 @@ import torch
 import torchvision.transforms as T
 from PIL import Image
 
-class dataset(torch.utils.data.Dataset):
+class DatasetDIV2K(torch.utils.data.Dataset):
     """ Load HR / LR pair """
-    def __init__(self, root_dir, height=128, width=128, scale_factor=2, augment=False, device='cpu'):
+    def __init__(self, root_dir, height=128, width=128, scale_factor=2, augment=False, mode = "train"):
         self.root_dir = root_dir
         self.height = height
         self.width = width
         self.augment = augment
         self.files = self.find_files()
-        self.device = device
+        if mode =="train":
+            self.files = self.files[:-100]
+        else:
+            self.files = self.files[-100:]
+        
         self.scale_factor = scale_factor
     
     def find_files(self):
@@ -50,8 +54,8 @@ class dataset(torch.utils.data.Dataset):
         input_tensor = transform(input_image)
         output_tensor = transform(output_image)
         
-        input_tensor = input_tensor.to(self.device)
-        output_tensor = output_tensor.to(self.device)
+        # input_tensor = input_tensor.to(self.device)
+        # output_tensor = output_tensor.to(self.device)
         
         return input_tensor, output_tensor, output_name
         
@@ -80,26 +84,21 @@ class dataset(torch.utils.data.Dataset):
         crop_shape = [i // scale_factor for i in crop_shape]
         return image.crop(crop_shape)
 
-    
-    def load_tensor(self, file_name, transform=None):
-        image = Image.open(file_name)
-        if transform is None:
-            transform = get_transform()
-        if self.augment:
-            image = self.augment(image)
-        return transform(image)
-    
+
     def indexerror(self, index):
         index = index if index < len(self.files) else 0
         return index
     
 
-def get_loader(root_dir='./data/DIV2K/DIV2K_train_HR/', batch_size=1, num_workers=0, mode='train', h=128, w=128, scale_factor=2, augment=False, device='cpu'):
-        
-    shuffle = (mode == 'train')    
-    data_loader = torch.utils.data.DataLoader(dataset=dataset(root_dir, h, w, scale_factor, augment, device),
+def get_loader(root_dir='./data/DIV2K/DIV2K_train_HR/', batch_size=1, num_workers=0, h=128, w=128, scale_factor=2, augment=False):
+
+    train_data_loader = torch.utils.data.DataLoader(dataset=DatasetDIV2K(root_dir, h, w, scale_factor, augment, "train"),
                                               batch_size=batch_size,
-                                              shuffle=shuffle,
-                                              num_workers=num_workers)   
-    return data_loader
+                                              shuffle=True,
+                                              num_workers=num_workers,)  
+    test_data_loader = torch.utils.data.DataLoader(dataset=DatasetDIV2K(root_dir, h, w, scale_factor, False, "test"),
+                                              batch_size=batch_size,
+                                              shuffle=False,
+                                              num_workers=num_workers,)   
+    return train_data_loader, test_data_loader
 
