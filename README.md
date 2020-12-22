@@ -10,8 +10,8 @@
     - LR Interpolation = bicubic
     - scale_facor = 2
     - batch size = 4
-    - train image size = 3 x 128 x 128
-    - test image size = 3 x 256 x 256
+    - train image size = 3 x 128 x 128 (Random Cropped)
+    - test image size = 3 x 256 x 256 (Center Cropped)
  
 ## Benchmark Result:
 
