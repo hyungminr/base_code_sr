@@ -6,7 +6,7 @@ import random
 import torch
 import torchvision.transforms as T
 from PIL import Image
-
+from torch.utils.data import DataLoader
 class DatasetDIV2K(torch.utils.data.Dataset):
     """ Load HR / LR pair """
     def __init__(self, root_dir, height=128, width=128, scale_factor=2, augment=False, mode = "train"):
@@ -90,15 +90,18 @@ class DatasetDIV2K(torch.utils.data.Dataset):
         return index
     
 
-def get_loader(root_dir='./data/DIV2K/DIV2K_train_HR/', batch_size=1, num_workers=0, h=128, w=128, scale_factor=2, augment=False):
+def get_loader(root_dir='./data/DIV2K/DIV2K_train_HR/', batch_size=1, num_workers=2, h=128, w=128, scale_factor=2, augment=False):
 
-    train_data_loader = torch.utils.data.DataLoader(dataset=DatasetDIV2K(root_dir, h, w, scale_factor, augment, "train"),
+    train_data_loader = DataLoader(dataset=DatasetDIV2K(root_dir, h, w, scale_factor, augment, "train"),
                                               batch_size=batch_size,
                                               shuffle=True,
-                                              num_workers=num_workers,)  
-    test_data_loader = torch.utils.data.DataLoader(dataset=DatasetDIV2K(root_dir, h, w, scale_factor, False, "test"),
+                                              num_workers=num_workers,
+                                              prefetch_factor=10)  
+    test_data_loader = DataLoader(dataset=DatasetDIV2K(root_dir, h, w, scale_factor, False, "test"),
                                               batch_size=batch_size,
                                               shuffle=False,
-                                              num_workers=num_workers,)   
+                                              num_workers=num_workers,
+                                              prefetch_factor=10
+                                              )   
     return train_data_loader, test_data_loader
 

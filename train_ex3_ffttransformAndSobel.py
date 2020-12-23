@@ -1,6 +1,6 @@
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import sys
 import time
@@ -18,12 +18,17 @@ import shutil
 from skimage.metrics import peak_signal_noise_ratio as get_psnr
 from skimage.metrics import structural_similarity as get_ssim
 
+
+import importlib.util
+from shutil import copyfile
+import torch.fft as fft
+
+import kornia
+
 # my library
 from data_loader import get_loader
 from utils import get_gpu_memory, sec2time
 
-import importlib.util
-from shutil import copyfile
 
 if __name__ == '__main__':
 
@@ -33,7 +38,7 @@ if __name__ == '__main__':
         def __init__(self):
             # self.version = '201209_RCAN'
             self.modelpath = './models/model.py'
-            self.mode = 'baseline'
+            self.mode = 'ex3_fftTransformAndSobel'
             self.height = 128
             self.width = 128
             self.batch_size = 4
@@ -106,11 +111,27 @@ if __name__ == '__main__':
             for lr, hr, _ in pbar:
                 lr = lr.to(device)
                 hr = hr.to(device)
+
+                hr_fft = torch.fft.fftn(hr, dim =(2,3))
+                hr_fft_r = hr_fft.real
+                hr_fft_i = hr_fft.imag
+
+                hr_sobel = kornia.sobel(hr)
+
                 # prediction
                 pred = model(lr)
+                pred_fft = torch.fft.fftn(pred, dim =(2,3))
+                pred_r = pred_fft.real
+                pred_i = pred_fft.imag
+
+                pred_sobel = kornia.sobel(pred)
+
+
 
                 # training
-                loss = criterion(hr, pred)
+                loss = criterion(hr, pred)  + 0.1*criterion(hr_fft_r, pred_r) + 0.1*criterion(hr_fft_i, pred_i) + 0.1*criterion(hr_sobel, pred_sobel)
+
+
                 optim.zero_grad()
                 loss.backward()
                 optim.step()
@@ -144,9 +165,22 @@ if __name__ == '__main__':
                 lr = lr.to(device)
                 hr = hr.to(device)
                 
+                hr_fft = torch.fft.fftn(hr, dim =(2,3))
+                hr_fft_r = hr_fft.real
+                hr_fft_i = hr_fft.imag
+
+                hr_sobel = kornia.sobel(hr)
+
                 # prediction
                 pred = model(lr)
-                loss = criterion(hr, pred)
+                pred_fft = torch.fft.fftn(pred, dim =(2,3))
+                pred_r = pred_fft.real
+                pred_i = pred_fft.imag
+
+                pred_sobel = kornia.sobel(pred)
+
+                # training
+                loss = criterion(hr, pred)  + 0.1*criterion(hr_fft_r, pred_r) + 0.1*criterion(hr_fft_i, pred_i) + 0.1*criterion(hr_sobel, pred_sobel)
 
                 # loss
                 losses.append(loss.item()/config.batch_size)

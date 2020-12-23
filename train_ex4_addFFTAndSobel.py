@@ -24,6 +24,9 @@ from utils import get_gpu_memory, sec2time
 
 import importlib.util
 from shutil import copyfile
+import torch.fft as fft
+
+import kornia
 
 if __name__ == '__main__':
 
@@ -32,8 +35,8 @@ if __name__ == '__main__':
     class Config:
         def __init__(self):
             # self.version = '201209_RCAN'
-            self.modelpath = './models/model.py'
-            self.mode = 'baseline'
+            self.modelpath = './models/model_v2.py'
+            self.mode = 'ex4_addFFTAndSobel'
             self.height = 128
             self.width = 128
             self.batch_size = 4
@@ -106,11 +109,19 @@ if __name__ == '__main__':
             for lr, hr, _ in pbar:
                 lr = lr.to(device)
                 hr = hr.to(device)
-                # prediction
-                pred = model(lr)
 
+                hr_sobel = kornia.sobel(hr)
+
+                hr_fft = torch.fft.fftn(hr, dim =(2,3))
+                hr_fft_r = hr_fft.real
+                hr_fft_i = hr_fft.imag
+
+                # prediction
+                pred, pred_r, pred_i, pred_s = model(lr)
                 # training
-                loss = criterion(hr, pred)
+                loss = criterion(hr, pred)  + 0.1*criterion(hr_fft_r, pred_r) + 0.1*criterion(hr_fft_i, pred_i) +  0.1*criterion(hr_sobel, pred_s)
+
+
                 optim.zero_grad()
                 loss.backward()
                 optim.step()
@@ -144,9 +155,16 @@ if __name__ == '__main__':
                 lr = lr.to(device)
                 hr = hr.to(device)
                 
+                hr_sobel = kornia.sobel(hr)
+
+                hr_fft = torch.fft.fftn(hr, dim =(2,3))
+                hr_fft_r = hr_fft.real
+                hr_fft_i = hr_fft.imag
+
                 # prediction
-                pred = model(lr)
-                loss = criterion(hr, pred)
+                pred, pred_r, pred_i, pred_s = model(lr)
+                # training
+                loss = criterion(hr, pred)  + 0.1*criterion(hr_fft_r, pred_r) + 0.1*criterion(hr_fft_i, pred_i) +  0.1*criterion(hr_sobel, pred_s)
 
                 # loss
                 losses.append(loss.item()/config.batch_size)
